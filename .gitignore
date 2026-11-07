@@ -1,0 +1,22 @@
+# 构建中间产物
+build/
+
+# 签名密钥（首次运行 tools/build.py 会自动生成 debug keystore）
+.keystore/
+
+# 构建产物：APK 通过 GitHub Releases 分发，不进仓库
+out/*.apk
+out/*.idsig
+
+# 本地工作台数据
+.workbuddy/
+
+# 系统 / 编辑器
+Thumbs.db
+.DS_Store
+desktop.ini
+*.log
+__pycache__/
+*.pyc
+.vscode/
+.idea/
