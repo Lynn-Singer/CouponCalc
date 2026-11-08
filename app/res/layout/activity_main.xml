@@ -36,6 +36,20 @@
                 android:textSize="12sp" />
 
             <TextView
+                android:id="@+id/btnCompare"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_chip_outline"
+                android:paddingStart="11dp"
+                android:paddingTop="4dp"
+                android:paddingEnd="11dp"
+                android:paddingBottom="4dp"
+                android:text="比价"
+                android:textColor="#FFFFFF"
+                android:textSize="12sp" />
+
+            <TextView
                 android:id="@+id/btnSwitchCoupon"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

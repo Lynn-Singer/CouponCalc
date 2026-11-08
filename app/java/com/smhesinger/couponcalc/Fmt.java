@@ -7,6 +7,7 @@ public final class Fmt {
 
     private static final DecimalFormat MONEY = new DecimalFormat("#,##0.00");
     private static final DecimalFormat QTY = new DecimalFormat("0.##");
+    private static final DecimalFormat TWO = new DecimalFormat("0.00");
 
     private Fmt() {
     }
@@ -19,6 +20,11 @@ public final class Fmt {
     /** 12 / 0.5 —— 整数不显示小数位 */
     public static String qty(double v) {
         return QTY.format(v);
+    }
+
+    /** 4.50 —— 固定两位，用于单价这类需要等宽对齐的数字 */
+    public static String two(double v) {
+        return TWO.format(v);
     }
 
     /** 解析用户输入，非法返回 NaN */

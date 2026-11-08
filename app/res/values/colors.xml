@@ -11,4 +11,15 @@
     <color name="danger">#F04438</color>
     <color name="inputBg">#F5F7FA</color>
     <color name="divider">#EDF0F4</color>
+
+    <!-- 比价：最划算 -->
+    <color name="bestBg">#E9F9F1</color>
+    <color name="bestBgBadge">#C9F2DD</color>
+    <color name="bestText">#0B7A48</color>
+    <!-- 比价：偏贵 -->
+    <color name="badBg">#FEECEB</color>
+    <color name="badText">#C0392B</color>
+    <!-- 比价：基本持平 -->
+    <color name="tieBg">#FFF4E0</color>
+    <color name="tieText">#9A6212</color>
 </resources>

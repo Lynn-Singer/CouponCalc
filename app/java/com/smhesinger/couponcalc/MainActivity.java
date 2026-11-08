@@ -3,6 +3,7 @@ package com.smhesinger.couponcalc;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.os.Bundle;
 import android.text.Editable;
@@ -24,6 +25,9 @@ import android.widget.Toast;
  * v1.1：多张券各自一张清单、商品名联想+历史单价、点行编辑、凑单建议
  */
 public class MainActivity extends Activity {
+
+    /** 从比价页带回一条商品 */
+    private static final int REQ_COMPARE = 101;
 
     private Store store;
 
@@ -113,6 +117,13 @@ public class MainActivity extends Activity {
                 showCouponPicker();
             }
         });
+        findViewById(R.id.btnCompare).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivityForResult(
+                        new Intent(MainActivity.this, CompareActivity.class), REQ_COMPARE);
+            }
+        });
 
         etCoupon.addTextChangedListener(new Watcher() {
             @Override
@@ -134,6 +145,27 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         store.save();
+    }
+
+    /** 比价页选中某项后「加入购物车」会把名称和单价带回来 */
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQ_COMPARE || resultCode != RESULT_OK || data == null) return;
+
+        String name = data.getStringExtra(CompareActivity.EXTRA_ADD_NAME);
+        double price = data.getDoubleExtra(CompareActivity.EXTRA_ADD_PRICE, 0);
+        if (name == null || name.trim().isEmpty() || price <= 0) return;
+
+        store.cur().items.add(new Item(name, price, 1));
+        store.remember(name, price);
+        store.save();
+
+        adapter.setItems(store.cur().items);
+        refreshHistorySuggestions();
+        refresh();
+        Toast.makeText(this, "已加入：" + name + " " + Fmt.money(price),
+                Toast.LENGTH_SHORT).show();
     }
 
     // ------------------------------------------------------------ 券
