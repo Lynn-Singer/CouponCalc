@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 数量快捷选择条：点数量框右侧三角时，从输入框上方弹出 1-6 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_popup"
+    android:orientation="horizontal"
+    android:padding="6dp">
+
+    <TextView
+        android:id="@+id/q1"
+        style="@style/QtyOption"
+        android:text="1" />
+
+    <TextView
+        android:id="@+id/q2"
+        style="@style/QtyOption"
+        android:text="2" />
+
+    <TextView
+        android:id="@+id/q3"
+        style="@style/QtyOption"
+        android:text="3" />
+
+    <TextView
+        android:id="@+id/q4"
+        style="@style/QtyOption"
+        android:text="4" />
+
+    <TextView
+        android:id="@+id/q5"
+        style="@style/QtyOption"
+        android:text="5" />
+
+    <TextView
+        android:id="@+id/q6"
+        style="@style/QtyOption"
+        android:text="6" />
+</LinearLayout>

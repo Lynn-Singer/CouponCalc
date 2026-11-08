@@ -252,6 +252,25 @@
             android:layout_height="1dp"
             android:layout_weight="1" />
 
+        <!-- 记入哪张券（仅逐张核销 + 多券时显示），点击可切换 -->
+        <TextView
+            android:id="@+id/btnOwner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="2dp"
+            android:background="@drawable/bg_chip_gray"
+            android:ellipsize="end"
+            android:maxWidth="130dp"
+            android:paddingStart="10dp"
+            android:paddingTop="5dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="5dp"
+            android:singleLine="true"
+            android:text="记入 券1 ▾"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
         <TextView
             android:id="@+id/btnClear"
             android:layout_width="wrap_content"
@@ -316,59 +335,38 @@
             android:paddingEnd="16dp"
             android:paddingBottom="12dp">
 
-        <AutoCompleteTextView
-            android:id="@+id/etName"
-            android:layout_width="match_parent"
-            android:layout_height="44dp"
-            android:background="@drawable/bg_input"
-            android:completionThreshold="1"
-            android:dropDownHeight="wrap_content"
-            android:dropDownVerticalOffset="2dp"
-            android:dropDownWidth="match_parent"
-            android:hint="商品名称，例如 伊利纯牛奶"
-            android:inputType="text"
-            android:maxLines="1"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp"
-            android:singleLine="true"
-            android:textColor="@color/textPrimary"
-            android:textColorHint="@color/textHint"
-            android:textSize="14sp" />
-
-        <!-- 记入哪张券（仅逐张核销 + 多券时显示） + 比价入口，同一行 -->
+        <!-- 商品名称 + 比价入口，同一行 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/btnOwner"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_chip_gray"
-                android:ellipsize="end"
-                android:maxWidth="150dp"
-                android:paddingStart="11dp"
-                android:paddingTop="6dp"
-                android:paddingEnd="11dp"
-                android:paddingBottom="6dp"
-                android:singleLine="true"
-                android:text="记入 券1 ▾"
-                android:textColor="@color/textSecondary"
-                android:textSize="12sp"
-                android:visibility="gone" />
-
-            <View
+            <AutoCompleteTextView
+                android:id="@+id/etName"
                 android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_input"
+                android:completionThreshold="1"
+                android:dropDownHeight="wrap_content"
+                android:dropDownVerticalOffset="2dp"
+                android:dropDownWidth="match_parent"
+                android:hint="商品名称，如 牛奶"
+                android:inputType="text"
+                android:maxLines="1"
+                android:paddingStart="14dp"
+                android:paddingEnd="14dp"
+                android:singleLine="true"
+                android:textColor="@color/textPrimary"
+                android:textColorHint="@color/textHint"
+                android:textSize="14sp" />
 
             <Button
                 android:id="@+id/btnCompare"
                 android:layout_width="wrap_content"
                 android:layout_height="44dp"
+                android:layout_marginStart="8dp"
                 android:background="@drawable/bg_btn_secondary"
                 android:minWidth="96dp"
                 android:paddingStart="16dp"
@@ -404,23 +402,44 @@
                 android:textColorHint="@color/textHint"
                 android:textSize="14sp" />
 
-            <EditText
-                android:id="@+id/etQty"
+            <!-- 数量：可直接输入，右侧三角点开 1-6 快捷选择 -->
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="44dp"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_input"
-                android:hint="数量"
-                android:inputType="numberDecimal"
-                android:maxLength="7"
-                android:maxLines="1"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:singleLine="true"
-                android:textColor="@color/textPrimary"
-                android:textColorHint="@color/textHint"
-                android:textSize="14sp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <EditText
+                    android:id="@+id/etQty"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@null"
+                    android:gravity="center_vertical"
+                    android:hint="数量"
+                    android:inputType="numberDecimal"
+                    android:maxLength="7"
+                    android:maxLines="1"
+                    android:paddingStart="14dp"
+                    android:paddingEnd="2dp"
+                    android:singleLine="true"
+                    android:textColor="@color/textPrimary"
+                    android:textColorHint="@color/textHint"
+                    android:textSize="14sp" />
+
+                <ImageView
+                    android:id="@+id/btnQtyDrop"
+                    android:layout_width="30dp"
+                    android:layout_height="match_parent"
+                    android:contentDescription="选择数量"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="10dp"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_arrow_down" />
+            </LinearLayout>
 
             <Button
                 android:id="@+id/btnAdd"

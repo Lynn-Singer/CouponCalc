@@ -3,9 +3,9 @@
 一次性消费券的凑单计算工具。填入券面额，逐条录入商品（名称 / 单价 / 数量），实时显示**已选购总额**和**还差多少**才能用完券。
 
 - 包名：`com.smhesinger.couponcalc`
-- 当前版本：**v1.3.0**（versionCode 4）
+- 当前版本：**v1.3.2**（versionCode 6）
 - 支持：Android 5.0+（minSdk 21，targetSdk 34）
-- 安装包：[Releases 下载 APK](https://github.com/Lynn-Singer/CouponCalc/releases)（102.9 KB，无第三方依赖、不联网、无权限）
+- 安装包：[Releases 下载 APK](https://github.com/Lynn-Singer/CouponCalc/releases)（107.2 KB，无第三方依赖、不联网、无权限）
 
 ## 功能
 
@@ -15,6 +15,7 @@
 |---|---|
 | 券面额 | 顶部蓝色卡片内直接输入/修改，改动后所有金额立即重算 |
 | 录入商品 | 名称 + 单价 + 数量（数量支持小数，如 0.5 kg 称重商品） |
+| 数量快捷选择 | 数量框右侧三角点一下，在框上方弹出 1-6 选择条，一点即填；也可直接键盘输入任意值 |
 | 实时汇总 | 已选购总额、还差金额、进度条、百分比与剩余金额 |
 | 状态反馈 | 未达标蓝色「还差」；刚好用完变绿；超出面额变红并提示需自付补差 |
 | 逐条删除 | 每行右侧 ✕，金额同步回退 |
@@ -44,7 +45,7 @@
 
 ### v1.2.0 新增：比价页
 
-录入栏「加入」按钮正上方的「比价」按钮进入（同尺寸、右边缘对齐，浅蓝描边区分主次）。用来算**不同规格的商品哪个更合算** —— 500g 装和 1kg 装、250ml×12 和 1L 装、90 抽和 120 抽。
+录入栏第一行右侧的「比价」按钮进入（与商品名称框同排、和「加入」等宽且右边缘对齐，浅蓝描边区分主次）。用来算**不同规格的商品哪个更合算** —— 500g 装和 1kg 装、250ml×12 和 1L 装、90 抽和 120 抽。
 
 **先解决什么能和什么比**
 
@@ -98,7 +99,7 @@
 
 **逐张核销怎么分配商品**
 
-- 录入栏左侧有「记入 消费券 X ▾」胶囊，点它切换当前券 —— 录商品前先确认归属
+- 清单标题行右侧有「记入 消费券 X ▾」胶囊，点它切换当前券 —— 录商品前先确认归属
 - 已经录错的：**长按清单行**，弹出「把「商品名」移到 → 消费券 Y」，一条命令搬过去
 - 汇总卡下方有一条状态栏：全部达标是绿色「N 张券都已够面额，可以结账了」；否则琥珀色列出「X 张已够，Y 张还差」+ 第一张差多少；有券还没填面额时也会单独点出来
 
@@ -138,8 +139,8 @@ export ANDROID_SDK=~/Android/Sdk   # macOS / Linux
 三者都不设时，会依次尝试 `ANDROID_HOME`、`ANDROID_SDK_ROOT`、`%LOCALAPPDATA%\Android\Sdk`、`~/AppData/Local/Android/Sdk`、`~/Android/Sdk`、`~/Library/Android/sdk`。`build-tools` 与 `platforms` 目录下取版本号最大的那个，不用手改路径。
 
 ```bash
-python tools/build.py                                    # 出包 out/CouponCalc-v1.3.0.apk
-adb install -r out/CouponCalc-v1.3.0.apk
+python tools/build.py                                    # 出包 out/CouponCalc-v1.3.2.apk
+adb install -r out/CouponCalc-v1.3.2.apk
 ```
 
 首次构建会自动生成 `debug.keystore`（`tools/build.py` 里 `keytool -genkeypair`），所以 `out/` 与 `.keystore/` 都不进版本库。注意这个 debug 签名只能自己装，**上架应用商店需要换成正式 keystore**。
@@ -171,6 +172,7 @@ app/
     layout/item_row.xml          清单行
     layout/item_spec.xml         比价结果行
     layout/dialog_edit_item.xml  修改商品对话框
+    layout/popup_qty.xml         数量快捷选择条（1-6，向上弹出）
     drawable/                    卡片、输入框、主/次按钮、状态条、进度条、胶囊
     values/                      颜色、主题、文案
     mipmap-*/                    启动图标（各密度 + Android 8+ 自适应图标）

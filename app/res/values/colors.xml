@@ -11,6 +11,8 @@
     <color name="danger">#F04438</color>
     <color name="inputBg">#F5F7FA</color>
     <color name="divider">#EDF0F4</color>
+    <color name="white">#FFFFFF</color>
+    <color name="qtyPressed">#EEF2F8</color>
     <!-- 次要按钮（比价）：浅蓝底 + 蓝描边，与实心蓝的「加入」区分 -->
     <color name="secondaryBg">#EAF1FE</color>
     <color name="secondaryPressedBg">#D7E4FC</color>

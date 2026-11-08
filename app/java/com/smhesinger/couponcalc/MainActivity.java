@@ -5,17 +5,21 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.ColorStateList;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ListView;
+import android.widget.PopupWindow;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -116,6 +120,13 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 addItem();
+            }
+        });
+        // 数量右侧三角：1-6 快捷选择（数量框本身仍可直接输入任意值）
+        findViewById(R.id.btnQtyDrop).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showQtyPicker();
             }
         });
         btnClear.setOnClickListener(new View.OnClickListener() {
@@ -446,6 +457,46 @@ public class MainActivity extends Activity {
     }
 
     // ------------------------------------------------------------ 商品
+
+    /** 数量快捷选择：点三角在数量框上方弹出 1-6 选择条，点一下直接填入 */
+    private void showQtyPicker() {
+        View content = LayoutInflater.from(this).inflate(R.layout.popup_qty, null);
+        final PopupWindow pw = new PopupWindow(content,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, true);
+        pw.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        pw.setOutsideTouchable(true);
+        pw.setElevation(dp(10));
+
+        double cur = Fmt.parse(etQty.getText().toString());
+        int[] ids = {R.id.q1, R.id.q2, R.id.q3, R.id.q4, R.id.q5, R.id.q6};
+        for (int i = 0; i < ids.length; i++) {
+            final int n = i + 1;
+            TextView tv = (TextView) content.findViewById(ids[i]);
+            boolean on = !Double.isNaN(cur) && Math.abs(cur - n) < 0.0001;
+            tv.setBackgroundResource(on ? R.drawable.bg_qty_item_sel : R.drawable.bg_qty_item);
+            tv.setTextColor(on
+                    ? getResources().getColor(R.color.white)
+                    : getResources().getColor(R.color.textPrimary));
+            tv.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    etQty.setText(String.valueOf(n));
+                    etQty.setSelection(etQty.getText().length());
+                    pw.dismiss();
+                }
+            });
+        }
+
+        // 先量出选择条尺寸，才能让它向上弹、右边缘与三角对齐
+        content.measure(View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        int w = content.getMeasuredWidth();
+        int h = content.getMeasuredHeight();
+
+        View anchor = findViewById(R.id.btnQtyDrop);
+        pw.showAsDropDown(anchor, anchor.getWidth() - w, -(anchor.getHeight() + h + dp(6)));
+    }
 
     private void addItem() {
         String name = etName.getText().toString().trim();

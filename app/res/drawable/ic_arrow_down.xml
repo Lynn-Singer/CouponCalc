@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 数量输入框右侧的下拉三角 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="11dp"
+    android:height="6dp"
+    android:viewportWidth="11"
+    android:viewportHeight="6">
+    <path
+        android:fillColor="#8A93A3"
+        android:pathData="M0.5,0 L10.5,0 L5.5,6 Z" />
+</vector>
