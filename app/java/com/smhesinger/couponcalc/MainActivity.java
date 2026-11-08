@@ -41,7 +41,7 @@ public class MainActivity extends Activity {
     private EditText etCoupon, etPrice, etQty;
     private AutoCompleteTextView etName;
     private TextView tvTotal, tvRemain, tvRemainLabel, tvProgress, tvSuggest, tvCount, tvEmpty, btnClear, btnSwitch;
-    private TextView tvCouponTitle, tvCouponHint, tvCouponStatus, btnOwner;
+    private TextView tvCouponTitle, tvCouponHint, tvCouponStatus;
     private ProgressBar pb;
     private ListView listView;
     private ItemAdapter adapter;
@@ -78,7 +78,6 @@ public class MainActivity extends Activity {
         tvCouponTitle = (TextView) findViewById(R.id.tvCouponTitle);
         tvCouponHint = (TextView) findViewById(R.id.tvCouponHint);
         tvCouponStatus = (TextView) findViewById(R.id.tvCouponStatus);
-        btnOwner = (TextView) findViewById(R.id.btnOwner);
         pb = (ProgressBar) findViewById(R.id.pb);
         listView = (ListView) findViewById(R.id.listView);
 
@@ -136,12 +135,6 @@ public class MainActivity extends Activity {
             }
         });
         btnSwitch.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showCouponPicker();
-            }
-        });
-        btnOwner.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 showCouponPicker();
@@ -237,12 +230,8 @@ public class MainActivity extends Activity {
                     : "面额可随时修改，已录入金额自动重算");
         }
 
-        // 录入归属：只有逐张核销且不止一张券时才需要指定
-        boolean showOwner = store.multi() && !combined;
-        btnOwner.setVisibility(showOwner ? View.VISIBLE : View.GONE);
-        if (showOwner) btnOwner.setText("记入 " + c.name + " ▾");
-
-        adapter.setMoveEnabled(showOwner);
+        // 逐张核销且不止一张券时，清单行支持长按换券
+        adapter.setMoveEnabled(store.multi() && !combined);
         adapter.setRows(combined ? store.flatRows() : store.rowsOf(store.current));
         refresh();
     }
@@ -264,14 +253,15 @@ public class MainActivity extends Activity {
         for (int i = 0; i < store.coupons.size(); i++) {
             Coupon c = store.coupons.get(i);
             String amt = c.amount > 0 ? Fmt.money(c.amount) : "未填面额";
-            String line2 = "面额 " + amt + "  ·  已购 " + Fmt.money(c.total());
+            // 达标状态并到券名一行，第二行只留面额和已购，避免折成三行
+            String head = c.name;
             if (showShort) {
                 double need = c.amount - c.total();
-                if (c.amount <= 0) line2 += "  ·  未设面额";
-                else if (need > 0.004) line2 += "  ·  还差 " + Fmt.money(need);
-                else line2 += "  ·  已够";
+                if (c.amount <= 0) head += "（未设面额）";
+                else if (need > 0.004) head += "（还差 " + Fmt.money(need) + "）";
+                else head += "（已够）";
             }
-            labels[i] = c.name + "\n" + line2;
+            labels[i] = head + "\n面额 " + amt + "  ·  已购 " + Fmt.money(c.total());
         }
 
         AlertDialog dlg = new AlertDialog.Builder(this)
@@ -518,7 +508,44 @@ public class MainActivity extends Activity {
             return;
         }
 
-        Coupon c = store.cur();
+        // 多张券 + 逐张核销：点「加入」时问一句记入哪张券；只有一张券则直接加
+        if (store.coupons.size() > 1 && !store.combined()) {
+            showOwnerPicker(name, price, qty);
+            return;
+        }
+        commitAdd(store.cur(), name, price, qty);
+    }
+
+    /** 加入时询问「这条记入哪张券」，选定后才真正入清单 */
+    private void showOwnerPicker(final String name, final double price, final double qty) {
+        final int n = store.coupons.size();
+        final String[] labels = new String[n];
+        for (int i = 0; i < n; i++) {
+            Coupon c = store.coupons.get(i);
+            String amt = c.amount > 0 ? Fmt.money(c.amount) : "未填面额";
+            labels[i] = c.name + "  ·  面额 " + amt
+                    + "\n已购 " + Fmt.money(c.total())
+                    + "  →  " + Fmt.money(c.total() + price * qty);
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("「" + name + "」记入哪张券？")
+                .setSingleChoiceItems(labels, store.current, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface d, int which) {
+                        d.dismiss();
+                        store.current = which;
+                        store.save();
+                        bindCoupon();                 // 券卡 / 胶囊 / 清单切到目标券
+                        commitAdd(store.coupons.get(which), name, price, qty);
+                    }
+                })
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    /** 真正把商品写进指定券（选完归属之后） */
+    private void commitAdd(Coupon c, String name, double price, double qty) {
         c.items.add(new Item(name, price, qty));
         store.remember(name, price);
         store.save();

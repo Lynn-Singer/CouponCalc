@@ -3,7 +3,7 @@
 一次性消费券的凑单计算工具。填入券面额，逐条录入商品（名称 / 单价 / 数量），实时显示**已选购总额**和**还差多少**才能用完券。
 
 - 包名：`com.smhesinger.couponcalc`
-- 当前版本：**v1.3.2**（versionCode 6）
+- 当前版本：**v1.3.4**（versionCode 8）
 - 支持：Android 5.0+（minSdk 21，targetSdk 34）
 - 安装包：[Releases 下载 APK](https://github.com/Lynn-Singer/CouponCalc/releases)（107.2 KB，无第三方依赖、不联网、无权限）
 
@@ -99,7 +99,7 @@
 
 **逐张核销怎么分配商品**
 
-- 清单标题行右侧有「记入 消费券 X ▾」胶囊，点它切换当前券 —— 录商品前先确认归属
+- **点「加入」时才问归属**：多张券 + 逐张核销时弹一次「「商品名」记入哪张券？」，选定后自动切到那张券并加入；只有一张券时直接加，不打扰
 - 已经录错的：**长按清单行**，弹出「把「商品名」移到 → 消费券 Y」，一条命令搬过去
 - 汇总卡下方有一条状态栏：全部达标是绿色「N 张券都已够面额，可以结账了」；否则琥珀色列出「X 张已够，Y 张还差」+ 第一张差多少；有券还没填面额时也会单独点出来
 
@@ -139,8 +139,8 @@ export ANDROID_SDK=~/Android/Sdk   # macOS / Linux
 三者都不设时，会依次尝试 `ANDROID_HOME`、`ANDROID_SDK_ROOT`、`%LOCALAPPDATA%\Android\Sdk`、`~/AppData/Local/Android/Sdk`、`~/Android/Sdk`、`~/Library/Android/sdk`。`build-tools` 与 `platforms` 目录下取版本号最大的那个，不用手改路径。
 
 ```bash
-python tools/build.py                                    # 出包 out/CouponCalc-v1.3.2.apk
-adb install -r out/CouponCalc-v1.3.2.apk
+python tools/build.py                                    # 出包 out/CouponCalc-v1.3.4.apk
+adb install -r out/CouponCalc-v1.3.4.apk
 ```
 
 首次构建会自动生成 `debug.keystore`（`tools/build.py` 里 `keytool -genkeypair`），所以 `out/` 与 `.keystore/` 都不进版本库。注意这个 debug 签名只能自己装，**上架应用商店需要换成正式 keystore**。

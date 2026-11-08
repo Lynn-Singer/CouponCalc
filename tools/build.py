@@ -62,7 +62,7 @@ BUILD = os.path.join(ROOT, "build")
 OUT = os.path.join(ROOT, "out")
 KS = os.path.join(ROOT, ".keystore", "debug.keystore")
 
-VERSION = "1.3.2"
+VERSION = "1.3.4"
 APK_NAME = "CouponCalc-v%s.apk" % VERSION
 
 

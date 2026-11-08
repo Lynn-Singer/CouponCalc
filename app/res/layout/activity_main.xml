@@ -252,25 +252,6 @@
             android:layout_height="1dp"
             android:layout_weight="1" />
 
-        <!-- 记入哪张券（仅逐张核销 + 多券时显示），点击可切换 -->
-        <TextView
-            android:id="@+id/btnOwner"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="2dp"
-            android:background="@drawable/bg_chip_gray"
-            android:ellipsize="end"
-            android:maxWidth="130dp"
-            android:paddingStart="10dp"
-            android:paddingTop="5dp"
-            android:paddingEnd="10dp"
-            android:paddingBottom="5dp"
-            android:singleLine="true"
-            android:text="记入 券1 ▾"
-            android:textColor="@color/textSecondary"
-            android:textSize="12sp"
-            android:visibility="gone" />
-
         <TextView
             android:id="@+id/btnClear"
             android:layout_width="wrap_content"
