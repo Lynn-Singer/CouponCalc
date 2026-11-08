@@ -11,6 +11,10 @@
     <color name="danger">#F04438</color>
     <color name="inputBg">#F5F7FA</color>
     <color name="divider">#EDF0F4</color>
+    <!-- 次要按钮（比价）：浅蓝底 + 蓝描边，与实心蓝的「加入」区分 -->
+    <color name="secondaryBg">#EAF1FE</color>
+    <color name="secondaryPressedBg">#D7E4FC</color>
+    <color name="secondaryStroke">#B7CCF8</color>
 
     <!-- 比价：最划算 -->
     <color name="bestBg">#E9F9F1</color>
