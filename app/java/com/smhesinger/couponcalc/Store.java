@@ -15,6 +15,11 @@ import java.util.List;
  */
 public class Store {
 
+    /** 结算口径：多张券合起来算，总价 ≥ 各券面额合计即可 */
+    public static final int MODE_COMBINED = 0;
+    /** 结算口径：每张券单独凑够自己的面额，商品必须分配到券 */
+    public static final int MODE_PER_COUPON = 1;
+
     private static final String SP_NAME = "coupon_calc";
     private static final String K_STATE = "state_v2";
     private static final String K_OLD_COUPON = "coupon";
@@ -24,6 +29,8 @@ public class Store {
     public final List<Coupon> coupons = new ArrayList<Coupon>();
     public final List<History> history = new ArrayList<History>();
     public int current = 0;
+    /** 结算方式，只有 2 张及以上券时才产生差别 */
+    public int mode = MODE_COMBINED;
 
     private final SharedPreferences sp;
 
@@ -38,6 +45,70 @@ public class Store {
         if (coupons.isEmpty()) coupons.add(new Coupon("消费券 1", 0));
         if (current < 0 || current >= coupons.size()) current = 0;
         return coupons.get(current);
+    }
+
+    // ------------------------------------------------------------ 多券汇总
+
+    /** 是否有多张券（只有多张时才区分结算口径） */
+    public boolean multi() {
+        return coupons.size() > 1;
+    }
+
+    /** 合并结算：多张券当成一个整体，商品不分归属 */
+    public boolean combined() {
+        return multi() && mode == MODE_COMBINED;
+    }
+
+    public double sumAmount() {
+        double t = 0;
+        for (Coupon c : coupons) t += c.amount;
+        return t;
+    }
+
+    public double sumTotal() {
+        double t = 0;
+        for (Coupon c : coupons) t += c.total();
+        return t;
+    }
+
+    public int sumItemCount() {
+        int n = 0;
+        for (Coupon c : coupons) n += c.items.size();
+        return n;
+    }
+
+    /** 合并模式：所有券的商品平铺成一个清单 */
+    public List<Row> flatRows() {
+        List<Row> out = new ArrayList<Row>();
+        for (int i = 0; i < coupons.size(); i++) {
+            for (Item it : coupons.get(i).items) out.add(new Row(i, it));
+        }
+        return out;
+    }
+
+    /** 逐张核销：只取某一张券的清单 */
+    public List<Row> rowsOf(int couponIndex) {
+        List<Row> out = new ArrayList<Row>();
+        if (couponIndex < 0 || couponIndex >= coupons.size()) return out;
+        for (Item it : coupons.get(couponIndex).items) out.add(new Row(couponIndex, it));
+        return out;
+    }
+
+    /** 逐张核销时还差多少张券没凑够面额（面额为 0 的券不算差） */
+    public int shortCount() {
+        int n = 0;
+        for (Coupon c : coupons) {
+            if (c.amount > 0 && c.total() + 0.004 < c.amount) n++;
+        }
+        return n;
+    }
+
+    /** 第一张没凑够面额的券的名字，全都够了返回 null */
+    public Coupon firstShort() {
+        for (Coupon c : coupons) {
+            if (c.amount > 0 && c.total() + 0.004 < c.amount) return c;
+        }
+        return null;
     }
 
     // ------------------------------------------------------------ 历史商品
@@ -148,6 +219,12 @@ public class Store {
                             ho.optDouble("p", 0), ho.optLong("t", 0)));
                 }
             }
+            // 老数据没有 mode 字段：多券时按升级前的行为（各券独立）处理
+            if (root.has("mode")) {
+                mode = root.optInt("mode", MODE_COMBINED);
+            } else {
+                mode = coupons.size() > 1 ? MODE_PER_COUPON : MODE_COMBINED;
+            }
             return !coupons.isEmpty();
         } catch (Exception e) {
             return false;
@@ -185,6 +262,7 @@ public class Store {
         JSONObject root = new JSONObject();
         try {
             root.put("current", current);
+            root.put("mode", mode);
 
             JSONArray carr = new JSONArray();
             for (Coupon c : coupons) {
