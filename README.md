@@ -3,9 +3,9 @@
 一次性消费券的凑单计算工具。填入券面额，逐条录入商品（名称 / 单价 / 数量），实时显示**已选购总额**和**还差多少**才能用完券。
 
 - 包名：`com.smhesinger.couponcalc`
-- 当前版本：**v1.3.4**（versionCode 8）
+- 当前版本：**v1.4.0**（versionCode 9）
 - 支持：Android 5.0+（minSdk 21，targetSdk 34）
-- 安装包：[Releases 下载 APK](https://github.com/Lynn-Singer/CouponCalc/releases)（107.2 KB，无第三方依赖、不联网、无权限）
+- 安装包：[Releases 下载 APK](https://github.com/Lynn-Singer/CouponCalc/releases)（115.2 KB，无第三方依赖、不联网、无权限）
 
 ## 功能
 
@@ -109,6 +109,38 @@
 
 只有一张券时两种口径结果完全相同，界面不显示任何模式相关元素。
 
+### v1.4.0 新增：重排计算（手动触发）
+
+券管理弹框（点券卡右上角胶囊）中间那个「重排计算」—— 位置就在「结算方式」和「取消」之间。**只在逐张核销、2 张及以上券时可用**，合并结算下会提示先切模式。
+
+它解决的是这种情况：商品已经买得差不多了，但归属是随手分的，导致这张超、那张差。点一下重排，它把商品在券之间重新分配，算完给出方案预览，你确认了才动数据。
+
+**两套口径，按商品总额自动选**
+
+| 商品总额 | 考核方式 | 结果 |
+|---|---|---|
+| ≥ 券面合计 | 每张券都要凑够，超额尽量小 | 每张券「现在 → 改后」对照，并给出**可以放弃的低价商品**（放弃后仍够面额） |
+| < 券面合计 | **最后一张券先不考核**，当兜底筐 | 其余券尽量都凑够且贴近面额，缺多少明说 |
+
+商品总额不够时，会先按「每张券都考核」算一遍，只有确实凑不齐才退回「最后一张不考核」重算 —— 不会因为策略切换而放过本来能达成的方案。
+
+**怎么排序（这是个多目标问题）**
+
+排序优先级：缺口合计 → 凑够的张数 → 是否值得动 → 最大超额 → 超额均衡度。同时跑两套优先级（「尽量贴近面额」和「尽量少搬动」），再挑一个：
+
+- 如果少搬动那套的缺口不更差，且贴面额那套只多压低不到 **¥2** 的超额 —— 就选少搬动那套。为了 8 毛钱把十几条商品全挪一遍，不值。
+- 只有真能改善到 ¥2 以上，或者能把某张券从「不够」变成「够」，才接受大改。
+
+求解是随机的（多起点 + 局部搜索：单片移动、两片交换），有 160ms 时间预算，普通购物车几十毫秒出结果。
+
+**预览与撤销**
+
+- 预览里勾「允许拆分数量」可以重算（把同一条 3 件商品拆成 1+2 分给两张券）
+- 应用后回到券管理，「重排计算」变成「撤销重排」，一键还原到重排前的分配
+- 「连放弃一起应用」会把建议放弃的商品直接从清单里删掉
+
+算法有离线自测（24 项断言，纯 Java 不依赖 Android）：`javac` 后 `java OptimizerTest`，见 `tools/test/`。
+
 ## 使用流程
 
 1. 打开 App，在顶部「消费券面额」填 100 / 200 / 任意金额。
@@ -139,8 +171,8 @@ export ANDROID_SDK=~/Android/Sdk   # macOS / Linux
 三者都不设时，会依次尝试 `ANDROID_HOME`、`ANDROID_SDK_ROOT`、`%LOCALAPPDATA%\Android\Sdk`、`~/AppData/Local/Android/Sdk`、`~/Android/Sdk`、`~/Library/Android/sdk`。`build-tools` 与 `platforms` 目录下取版本号最大的那个，不用手改路径。
 
 ```bash
-python tools/build.py                                    # 出包 out/CouponCalc-v1.3.4.apk
-adb install -r out/CouponCalc-v1.3.4.apk
+python tools/build.py                                    # 出包 out/CouponCalc-v1.4.0.apk
+adb install -r out/CouponCalc-v1.4.0.apk
 ```
 
 首次构建会自动生成 `debug.keystore`（`tools/build.py` 里 `keytool -genkeypair`），所以 `out/` 与 `.keystore/` 都不进版本库。注意这个 debug 签名只能自己装，**上架应用商店需要换成正式 keystore**。
@@ -153,8 +185,9 @@ adb install -r out/CouponCalc-v1.3.4.apk
 app/
   AndroidManifest.xml
   java/com/smhesinger/couponcalc/
-    MainActivity.java   界面与交互（录入、汇总、编辑、切券、结算方式、凑单建议）
+    MainActivity.java   界面与交互（录入、汇总、编辑、切券、结算方式、凑单建议、重排预览）
     CompareActivity.java 比价页（分组排名、按需成本、带入购物车）
+    Optimizer.java      重排求解器（多起点贪心 + 局部搜索，多目标字典序）
     Store.java          本地存储（多券 + 结算方式 + 历史商品，含 v1.0 数据自动迁移）
     Coupon.java         一张券 = 面额 + 清单
     Item.java           单条商品（单价 × 数量）
@@ -172,6 +205,7 @@ app/
     layout/item_row.xml          清单行
     layout/item_spec.xml         比价结果行
     layout/dialog_edit_item.xml  修改商品对话框
+    layout/dialog_optimize.xml   重排预览的「允许拆分数量」勾选项
     layout/popup_qty.xml         数量快捷选择条（1-6，向上弹出）
     drawable/                    卡片、输入框、主/次按钮、状态条、进度条、胶囊
     values/                      颜色、主题、文案
@@ -180,7 +214,7 @@ tools/
   build.py      一键构建 APK（aapt2 → javac → d8 → zipalign → apksigner）
   make_icon.py  重新生成图标
   ui.py         真机自动化：按控件 id 点按、输入、截图、dump（调试用）
-  test/         比价核心算法的离线自测（纯 Java，不依赖 Android）
+  test/         算法离线自测（比价核心 + 重排求解器，纯 Java 不依赖 Android）
 shots/          真机截图（会拍到真实购物清单，已 gitignore，不进仓库）
 out/            构建产物
 ```
@@ -199,6 +233,9 @@ out/            构建产物
 | 「持平」阈值（现为 3%） | `CompareActivity.TIE_PCT` |
 | 按需成本的取整规则 | `Spec.packsFor` |
 | 结算方式的两种口径 | `Store.combined()` + `MainActivity.refresh` / `updateCouponStatus` |
+| 重排的优先级顺序与「值得动」阈值 | `Optimizer.ORDER_MONEY` / `ORDER_CHURN` / `WORTH_MOVING_CENTS` |
+| 重排时间预算与重启次数 | `Optimizer.TIME_BUDGET_MS` / `RESTARTS` |
+| 一条商品最多拆几件 | `Optimizer.MAX_PIECES` |
 | 加字段（如分类、备注） | `Item.java` → `item_row.xml` → `Store` 序列化 → 编辑对话框 |
 
 ## 已知取舍

@@ -16,6 +16,8 @@ import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AutoCompleteTextView;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ListView;
@@ -47,6 +49,9 @@ public class MainActivity extends Activity {
     private ItemAdapter adapter;
 
     private NameAdapter nameAdapter;
+
+    /** 应用「重新分配」之前的商品快照，用于撤销 */
+    private List<List<Item>> undoSnapshot;
 
     private int cPrimary, cSuccess, cDanger, cSub;
     private boolean loading = false;
@@ -190,6 +195,7 @@ public class MainActivity extends Activity {
         store.cur().items.add(new Item(name, price, 1));
         store.remember(name, price);
         store.save();
+        invalidateUndo();
 
         reloadList();
         refreshHistorySuggestions();
@@ -249,8 +255,10 @@ public class MainActivity extends Activity {
 
     private void showCouponPicker() {
         final boolean showShort = store.multi() && !store.combined();
-        final String[] labels = new String[store.coupons.size()];
-        for (int i = 0; i < store.coupons.size(); i++) {
+        final int n = store.coupons.size();
+        // 最后多一行「新建」，把按钮位腾出来给「重排计算」
+        final String[] labels = new String[n + 1];
+        for (int i = 0; i < n; i++) {
             Coupon c = store.coupons.get(i);
             String amt = c.amount > 0 ? Fmt.money(c.amount) : "未填面额";
             // 达标状态并到券名一行，第二行只留面额和已购，避免折成三行
@@ -263,31 +271,38 @@ public class MainActivity extends Activity {
             }
             labels[i] = head + "\n面额 " + amt + "  ·  已购 " + Fmt.money(c.total());
         }
+        labels[n] = "＋ 新建消费券";
 
         AlertDialog dlg = new AlertDialog.Builder(this)
                 .setTitle("消费券（长按改名或删除）")
                 .setSingleChoiceItems(labels, store.current, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface d, int which) {
+                        d.dismiss();
+                        if (which == store.coupons.size()) {
+                            showNewCouponDialog();
+                            return;
+                        }
                         store.current = which;
                         store.save();
                         bindCoupon();
-                        d.dismiss();
                     }
                 })
-                .setPositiveButton("新建", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface d, int w) {
-                        showNewCouponDialog();
-                    }
-                })
+                .setPositiveButton("取消", null)
                 .setNeutralButton("结算方式", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface d, int w) {
                         showSettleModeDialog();
                     }
                 })
-                .setNegativeButton("取消", null)
+                .setNegativeButton(undoSnapshot != null ? "撤销重排" : "重排计算",
+                        new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface d, int w) {
+                                if (undoSnapshot != null) undoOptimize();
+                                else showRebalanceDialog();
+                            }
+                        })
                 .show();
 
         dlg.getListView().setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
@@ -339,6 +354,7 @@ public class MainActivity extends Activity {
                         store.coupons.add(new Coupon(nm, 0));
                         store.current = store.coupons.size() - 1;
                         store.save();
+                        invalidateUndo();
                         bindCoupon();
                         // 第一张券刚变成两张：问清楚这两张券怎么结算
                         if (store.coupons.size() == 2) showSettleModeDialog();
@@ -439,6 +455,7 @@ public class MainActivity extends Activity {
                         store.coupons.remove(index);
                         store.current = 0;
                         store.save();
+                        invalidateUndo();
                         bindCoupon();
                         toast("已删除");
                     }
@@ -549,6 +566,7 @@ public class MainActivity extends Activity {
         c.items.add(new Item(name, price, qty));
         store.remember(name, price);
         store.save();
+        invalidateUndo();
 
         refreshHistorySuggestions();
         reloadList();
@@ -620,6 +638,7 @@ public class MainActivity extends Activity {
                 it.qty = qty;
                 store.remember(name, price);
                 store.save();
+                invalidateUndo();
                 refreshHistorySuggestions();
                 reloadList();
                 refresh();
@@ -635,6 +654,7 @@ public class MainActivity extends Activity {
         reloadList();
         refresh();
         store.save();
+        invalidateUndo();
         toast("已删除「" + row.item.name + "」");
     }
 
@@ -669,6 +689,7 @@ public class MainActivity extends Activity {
                                 from.items.remove(row.item);
                                 dest.items.add(row.item);
                                 store.save();
+                                invalidateUndo();
                                 bindCoupon();
                                 toast("已移到「" + dest.name + "」");
                             }
@@ -701,10 +722,231 @@ public class MainActivity extends Activity {
                         reloadList();
                         refresh();
                         store.save();
+                        invalidateUndo();
                         toast("已清空");
                     }
                 })
                 .show();
+    }
+
+    // ------------------------------------------------------------ 重排计算
+
+    /**
+     * 券管理里的「重排计算」：手动触发，不动数据只算方案。
+     *
+     * 两种口径：
+     * 1) 商品总额 ≥ 券面总额：每张券都要凑够，超出尽量小，再给出「哪些低价商品可以不买」；
+     * 2) 商品总额 < 券面总额：最后一张券先不考核，其余券尽量都凑够且贴近面额。
+     */
+    private void showRebalanceDialog() {
+        if (store.coupons.size() < 2) {
+            toast("只有一张券，不需要重排");
+            return;
+        }
+        if (store.sumItemCount() == 0) {
+            toast("购物清单里还没有商品");
+            return;
+        }
+        if (store.combined()) {
+            toast("合并结算不分券，先切成逐张核销");
+            return;
+        }
+
+        // 先按「每张券都考核」算；凑不齐再让最后一张券当兜底筐重算一次
+        Optimizer.Plan plan = Optimizer.solve(store.coupons, store.allowSplit, false);
+        if (!plan.allCovered()) {
+            Optimizer.Plan relaxed = Optimizer.solve(store.coupons, store.allowSplit, true);
+            if (relaxed.deficitAfter() < plan.deficitAfter()) plan = relaxed;
+        }
+        showPlanDialog(plan);
+    }
+
+    /** 方案预览：先看钱，再决定要不要动商品归属 */
+    private void showPlanDialog(final Optimizer.Plan plan) {
+        final Optimizer.Plan[] current = {plan};
+
+        View box = LayoutInflater.from(this).inflate(R.layout.dialog_optimize, null);
+        final CheckBox cb = (CheckBox) box.findViewById(R.id.cbSplit);
+        cb.setChecked(store.allowSplit);
+
+        final AlertDialog dlg = new AlertDialog.Builder(this)
+                .setTitle(titleOf(current[0]))
+                .setMessage(planText(current[0]))
+                .setView(box)
+                .setNegativeButton("取消", null)
+                .setNeutralButton("连放弃一起应用", null)
+                .setPositiveButton("应用", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface d, int which) {
+                        applyPlan(current[0], false);
+                    }
+                })
+                .create();
+
+        cb.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton b, boolean checked) {
+                store.allowSplit = checked;
+                store.save();
+                current[0] = resolve(checked);
+                dlg.setMessage(planText(current[0]));
+                dlg.setTitle(titleOf(current[0]));
+                syncGiveUpButton(dlg, current[0]);
+            }
+        });
+
+        dlg.show();
+        syncGiveUpButton(dlg, current[0]);
+        // 「连放弃一起应用」不关对话框，先把方案应用再决定要不要放弃
+        dlg.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                applyPlan(current[0], true);
+                dlg.dismiss();
+            }
+        });
+    }
+
+    private String titleOf(Optimizer.Plan p) {
+        if (!p.better() && p.movedRows == 0) return "重排结果：不用调整";
+        return p.allCovered() ? "重排结果：券都够用" : "重排结果：商品还不够";
+    }
+
+    /** 按当前拆分开关重新求解（口径与 showRebalanceDialog 保持一致） */
+    private Optimizer.Plan resolve(boolean allowSplit) {
+        Optimizer.Plan plan = Optimizer.solve(store.coupons, allowSplit, false);
+        if (!plan.allCovered()) {
+            Optimizer.Plan relaxed = Optimizer.solve(store.coupons, allowSplit, true);
+            if (relaxed.deficitAfter() < plan.deficitAfter()) plan = relaxed;
+        }
+        return plan;
+    }
+
+    /** 没有可放弃的商品时，把中间那个按钮藏起来 */
+    private void syncGiveUpButton(AlertDialog dlg, Optimizer.Plan p) {
+        boolean show = p.giveUpTotal() > 0.004;
+        dlg.getButton(AlertDialog.BUTTON_NEUTRAL)
+                .setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    private String planText(Optimizer.Plan p) {
+        double total = store.sumTotal();
+        double amount = store.sumAmount();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("商品 ").append(Fmt.money(total))
+                .append(" · 券面合计 ").append(Fmt.money(amount));
+        if (!p.better() && p.movedRows == 0) {
+            sb.append("\n现在的分配已经够贴近面额，不用重排");
+        }
+        if (p.ignoreLast && p.size() > 1) {
+            sb.append("\n商品总额不够，").append(store.coupons.get(p.size() - 1).name)
+                    .append(" 先不考核，其余券尽量凑够");
+        } else {
+            sb.append("\n每张券都要凑够面额");
+        }
+
+        for (int i = 0; i < p.size(); i++) {
+            Coupon c = store.coupons.get(i);
+            boolean skipped = p.target(i) <= 0;
+            sb.append("\n\n").append(c.name).append(" · 面额 ")
+                    .append(c.amount > 0 ? Fmt.money(c.amount) : "未填");
+            if (skipped) sb.append("（本次不考核）");
+            sb.append("\n现在 ").append(Fmt.money(p.before(i)))
+                    .append(skipped ? "" : deltaText(p.before(i), p.target(i)))
+                    .append("\n改后 ").append(Fmt.money(p.after(i)))
+                    .append(skipped ? "" : deltaText(p.after(i), p.target(i)));
+        }
+
+        int stillShort = 0;
+        for (int i = 0; i < p.size(); i++) {
+            if (p.target(i) > 0 && p.after(i) + 0.004 < p.target(i)) stillShort++;
+        }
+        sb.append("\n\n");
+        if (stillShort > 0) {
+            sb.append("还有 ").append(stillShort)
+                    .append(" 张凑不够 —— 商品总额不够，得再买点东西");
+        } else if (p.movedRows > 0) {
+            sb.append("调整 ").append(p.movedRows).append(" 条商品的归属");
+            if (p.splitRows > 0) sb.append("，其中 ").append(p.splitRows).append(" 条拆分了数量");
+        } else {
+            sb.append("商品归属不用动");
+        }
+
+        double save = p.giveUpTotal();
+        if (save > 0.004) {
+            sb.append("\n\n还能再省 ").append(Fmt.money(save))
+                    .append("：放弃下面这些不影响凑够面额");
+            for (int i = 0; i < p.size(); i++) {
+                for (Item it : p.giveUps.get(i)) {
+                    sb.append("\n· ").append(store.coupons.get(i).name).append("  ")
+                            .append(it.name).append(" ¥").append(Fmt.two(it.subtotal()));
+                }
+            }
+            sb.append("\n放弃后最多只超 ").append(Fmt.money(p.maxExcessAfterGiveUp()));
+        }
+        return sb.toString();
+    }
+
+    /** 「（差 ¥3.00）」/「（超 ¥0.50）」/ 刚好 */
+    private String deltaText(double total, double target) {
+        if (target <= 0) return "";
+        double d = total - target;
+        if (d < -0.004) return "（差 " + Fmt.money(-d) + "）";
+        if (d > 0.004) return "（超 " + Fmt.money(d) + "）";
+        return "（刚好）";
+    }
+
+    /** 应用方案；withGiveUps 时连「可以放弃的商品」一起从清单里删掉 */
+    private void applyPlan(Optimizer.Plan p, boolean withGiveUps) {
+        if (p == null) return;
+        undoSnapshot = new ArrayList<List<Item>>();
+        for (Coupon c : store.coupons) undoSnapshot.add(new ArrayList<Item>(c.items));
+
+        for (int i = 0; i < store.coupons.size() && i < p.size(); i++) {
+            List<Item> items = store.coupons.get(i).items;
+            items.clear();
+            items.addAll(p.items.get(i));
+        }
+
+        int dropped = 0;
+        if (withGiveUps) {
+            for (int i = 0; i < p.size() && i < store.coupons.size(); i++) {
+                List<Item> items = store.coupons.get(i).items;
+                for (Item it : p.giveUps.get(i)) {
+                    if (items.remove(it)) dropped++;     // Item 未重写 equals，按引用删
+                }
+            }
+        }
+        store.save();
+        bindCoupon();
+        toast(dropped > 0
+                ? "已重排，并放弃 " + dropped + " 件商品"
+                : "已重排，" + p.movedRows + " 条商品换了券");
+    }
+
+    private void undoOptimize() {
+        if (undoSnapshot == null) return;
+        if (undoSnapshot.size() != store.coupons.size()) {
+            undoSnapshot = null;
+            store.save();
+            bindCoupon();
+            return;
+        }
+        for (int i = 0; i < store.coupons.size(); i++) {
+            List<Item> items = store.coupons.get(i).items;
+            items.clear();
+            items.addAll(undoSnapshot.get(i));
+        }
+        undoSnapshot = null;
+        store.save();
+        bindCoupon();
+        toast("已撤销，恢复到重排之前");
+    }
+
+    /** 商品或券被改动后，旧快照就对不上了，直接作废 */
+    private void invalidateUndo() {
+        undoSnapshot = null;
     }
 
     // ------------------------------------------------------------ 界面刷新

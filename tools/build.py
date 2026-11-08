@@ -62,7 +62,7 @@ BUILD = os.path.join(ROOT, "build")
 OUT = os.path.join(ROOT, "out")
 KS = os.path.join(ROOT, ".keystore", "debug.keystore")
 
-VERSION = "1.3.4"
+VERSION = "1.4.0"
 APK_NAME = "CouponCalc-v%s.apk" % VERSION
 
 
@@ -86,11 +86,22 @@ def main():
         if not os.path.exists(path):
             raise SystemExit("缺少构建环境: " + path)
 
-    if os.path.isdir(BUILD):
-        shutil.rmtree(BUILD)
-    os.makedirs(os.path.join(BUILD, "gen"))
-    os.makedirs(os.path.join(BUILD, "classes"))
-    os.makedirs(os.path.join(BUILD, "dex"))
+    # 只清这一轮会重新生成的产物，不整目录删（避免大批量删除）
+    stale = ["res.zip", "base.apk", "unsigned.apk", "aligned.apk", "sources.txt"]
+    for name in stale:
+        p = os.path.join(BUILD, name)
+        if os.path.isfile(p):
+            os.remove(p)
+    for sub in ("gen", "dex"):
+        d = os.path.join(BUILD, sub)
+        if os.path.isdir(d):
+            for n in os.listdir(d):
+                f = os.path.join(d, n)
+                if os.path.isfile(f):
+                    os.remove(f)
+    os.makedirs(os.path.join(BUILD, "gen"), exist_ok=True)
+    os.makedirs(os.path.join(BUILD, "classes"), exist_ok=True)
+    os.makedirs(os.path.join(BUILD, "dex"), exist_ok=True)
     os.makedirs(OUT, exist_ok=True)
 
     # 1. 资源编译

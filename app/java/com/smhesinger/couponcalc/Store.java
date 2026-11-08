@@ -31,6 +31,8 @@ public class Store {
     public int current = 0;
     /** 结算方式，只有 2 张及以上券时才产生差别 */
     public int mode = MODE_COMBINED;
+    /** 重新分配时是否允许把同一条商品的数量拆到不同券（更省，但小票上会多一行） */
+    public boolean allowSplit = true;
 
     private final SharedPreferences sp;
 
@@ -225,6 +227,7 @@ public class Store {
             } else {
                 mode = coupons.size() > 1 ? MODE_PER_COUPON : MODE_COMBINED;
             }
+            allowSplit = root.optBoolean("split", true);
             return !coupons.isEmpty();
         } catch (Exception e) {
             return false;
@@ -263,6 +266,7 @@ public class Store {
         try {
             root.put("current", current);
             root.put("mode", mode);
+            root.put("split", allowSplit);
 
             JSONArray carr = new JSONArray();
             for (Coupon c : coupons) {
